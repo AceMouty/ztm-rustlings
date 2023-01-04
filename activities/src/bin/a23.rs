@@ -14,20 +14,20 @@ fn part_1() -> bool {
     // an access level.
     // Note: Use is_some or is_none.
     let access_level = maybe_access("admin");
-    return access_level.is_some();
+    access_level.is_some()
 }
 
 fn part_2() -> Option<Access> {
     // "Root" is equivalent to Access::Admin, but it is
     // not listed in the maybe_access function.
     // Note: Use or_else and root().
-    return maybe_access("root").or_else(|| root());
+    maybe_access("root").or_else(|| root())
 }
 
 fn part_3() -> Access {
     // "Alice" is not a listed user, so she will be a guest.
     // Note: Use unwrap_or_else.
-    return maybe_access("Alice").unwrap_or_else(|| Access::Guest);
+    maybe_access("Alice").unwrap_or_else(|| Access::Guest)
 }
 
 #[derive(Debug, Eq, PartialEq)]
