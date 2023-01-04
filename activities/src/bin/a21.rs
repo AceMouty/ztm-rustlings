@@ -25,4 +25,15 @@ fn find_user(name: &str) -> Option<i32> {
     }
 }
 
-fn main() {}
+fn main() {
+    let usernames = vec!["sam", "billy", "katie"];
+
+    for name in usernames.iter() {
+        let user = find_user(name).map(| id | User { name: name.to_string(), user_id: id});
+
+        match user {
+            Some(user) => println!("Username: {}, UserID: {}", user.name, user.user_id),
+            None => println!("User {} does not exist", name)
+        }
+    }
+}
