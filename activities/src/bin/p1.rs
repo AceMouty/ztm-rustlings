@@ -36,8 +36,8 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let mut bills: Vec<Bill> = Vec::new();
     let mut user_selection: String;
+    let mut bills: BillList = BillList::new();
 
     loop {
         print_menu();
@@ -47,10 +47,6 @@ fn main() {
                 println!("{}", err);
                 break;
             }
-        }
-
-        if user_selection == "q" {
-            break;
         }
 
         let menu_result =  MenuOption::new(&user_selection);
@@ -63,35 +59,29 @@ fn main() {
         match menu_option {
             MenuOption::AddBill => {
                 let new_bill = create_new_bill(); 
-                bills.push(new_bill);
+                bills.add(new_bill);
                 println!("bill added!");
-
-                let sleep_sec = Duration::from_secs(3);
-                thread::sleep(sleep_sec);
-                std::process::Command::new("clear").status().unwrap();
+                TerminalManager::clear_screen(3);
             },
             MenuOption::ViewBills => {
-                std::process::Command::new("clear").status().unwrap();
-                if bills.len() == 0 {
+                TerminalManager::clear_screen(0);
+
+                if bills.length() == 0 {
                     println!("No bills to display");
 
-                    let sleep_sec = Duration::from_secs(2);
-                    thread::sleep(sleep_sec);
-                    std::process::Command::new("clear").status().unwrap();
+                    TerminalManager::clear_screen(2);
                     continue;
                 }
 
                 println!("Name | Amount");
-                bills
-                .iter()
-                .for_each(| bill | println!("{} | {}", bill.name, bill.amount));
+                bills.print();
 
-                // let sleep_sec = Duration::from_secs(3);
-                // thread::sleep(sleep_sec);
                 println!("Press any key to return...");
-                io::stdin().read_line(&mut String::new());
-                std::process::Command::new("clear").status().unwrap();
-            }
+                io::stdin().read_line(&mut String::new()).unwrap();
+
+                TerminalManager::clear_screen(0);
+            },
+            MenuOption::Quit => break,
             _ => {
                 println!("Not yet implemented");
                 return;
@@ -105,10 +95,11 @@ fn main() {
 fn print_menu() {
 
     println!("== Manage Bills ==");
-    println!("1. Add Bill\n2. View Bills");
+    println!("1. Add Bill");
+    println!("2. View Bills");
+    println!("q: quit");
 
     // empty spacer from menu
-    println!("q: quit");
     println!();
 }
 
@@ -147,10 +138,42 @@ impl Bill {
     }
 }
 
-// Possible options in the application
+struct TerminalManager;
+impl TerminalManager {
+    fn clear_screen(sec_duration: u64) {
+
+        let sleep_time = Duration::from_secs(sec_duration);
+        thread::sleep(sleep_time);
+        std::process::Command::new("clear").status().unwrap();
+    }
+}
+
+struct BillList {
+    bills: Vec<Bill>
+}
+
+impl BillList {
+    fn new() -> Self {
+        Self{bills: Vec::new()}
+    }
+
+    fn add(&mut self, new_bill: Bill) {
+        self.bills.push(new_bill);
+    }
+
+    fn print(&self) {
+        self.bills.iter().for_each(| bill | println!("{} {}", bill.name, bill.amount));
+    }
+
+    fn length(&self) -> usize {
+        self.bills.len()
+    }
+}
+
 enum MenuOption {
     AddBill,
-    ViewBills
+    ViewBills,
+    Quit
 }
 
 impl MenuOption {
@@ -159,6 +182,7 @@ impl MenuOption {
         match selection.as_str() {
            "1" => Some(MenuOption::AddBill),
            "2" => Some(MenuOption::ViewBills), 
+           "q" => Some(MenuOption::Quit),
             _ => None
         }
     }
