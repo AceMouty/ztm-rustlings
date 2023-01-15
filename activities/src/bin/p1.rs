@@ -91,11 +91,12 @@ fn main() {
                 menu::remove_bill(&mut bills);
                 TerminalManager::clear_screen(2);
             },
+            MenuOption::UpdateBill => {
+                TerminalManager::clear_screen(0);
+                menu::update_bill(&mut bills);
+                TerminalManager::clear_screen(2);
+            },
             MenuOption::Quit => break,
-            _ => {
-                println!("Not yet implemented");
-                return;
-            }
         }
     }
 
@@ -146,6 +147,7 @@ mod menu {
         println!("1. Add Bill");
         println!("2. View Bills");
         println!("3. Remove Bill");
+        println!("4. Update Bill");
         println!("q: quit");
         println!();
     }
@@ -190,6 +192,31 @@ mod menu {
         }
 
         println!("{} not found",bill_name);
+    }
+
+    pub(crate) fn update_bill(bills: &mut BillList) {
+        for bill in bills.get_all() {
+            println!("Name: {}", bill.name);
+        }
+
+        println!("Provide a bill to update:");
+        let name = match get_input() {
+            Some(val) => val,
+            None => return
+        };
+
+        println!("Provide new amount:")
+        let new_amount = match get_bill_amount() {
+            Some(val) => val,
+            None => return
+        };
+
+        if bills.update(&name, new_amount) {
+            println!("Updated {}, new amount is {}", name, new_amount);
+            return;
+        }
+
+        println!("{} not found", name);
     }
 }
 
@@ -239,12 +266,23 @@ impl BillList {
     fn remove(&mut self, name: &str) -> bool {
         self.bills.remove(name).is_some()
     }
+
+    fn update(&mut self, name: &str, amount: f64) -> bool {
+        match self.bills.get_mut(name) {
+            Some(bill) => {
+                bill.amount = amount;
+                true
+            },
+            None => false
+        }
+    }
 }
 
 enum MenuOption {
     AddBill,
     ViewBills,
     RemoveBill,
+    UpdateBill,
     Quit
 }
 
@@ -255,6 +293,7 @@ impl MenuOption {
            "1" => Some(MenuOption::AddBill),
            "2" => Some(MenuOption::ViewBills), 
            "3" => Some(MenuOption::RemoveBill), 
+           "4" => Some(MenuOption::UpdateBill), 
            "q" => Some(MenuOption::Quit),
             _ => None
         }
