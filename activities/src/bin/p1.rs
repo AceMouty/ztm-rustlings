@@ -34,31 +34,37 @@
 use std::io;
 use std::thread;
 use std::time::Duration;
+use std::collections::HashMap;
 
 fn main() {
     let mut user_selection: String;
     let mut bills: BillList = BillList::new();
 
     loop {
-        print_menu();
-        match get_input() {
-            Ok(buff) => user_selection = buff,
-            Err(err) =>  {
-                println!("{}", err);
+        menu::print_main_menu();
+        user_selection = match get_input() {
+            Some(buff) => buff,
+            None =>  {
+                TerminalManager::clear_screen(0);
+                continue;
+            }
+        };
+
+        let menu_option = match MenuOption::new(&user_selection) {
+            Some(val) => val,
+            None => {
+                println!("Unsupported selection provided");
                 break;
             }
-        }
+        };
 
-        let menu_result =  MenuOption::new(&user_selection);
-        if menu_result.is_none() {
-            println!("Unsupported selection provided");
-            break;
-        }
-
-        let menu_option = menu_result.unwrap();
         match menu_option {
             MenuOption::AddBill => {
-                let new_bill = create_new_bill(); 
+                let new_bill = match menu::create_bill() {
+                    Some(val) => val,
+                    None => continue
+                }; 
+
                 bills.add(new_bill);
                 println!("bill added!");
                 TerminalManager::clear_screen(3);
@@ -73,13 +79,17 @@ fn main() {
                     continue;
                 }
 
-                println!("Name | Amount");
-                bills.print();
+                menu::view_bills(bills.get_all()); 
 
                 println!("Press any key to return...");
                 io::stdin().read_line(&mut String::new()).unwrap();
 
                 TerminalManager::clear_screen(0);
+            },
+            MenuOption::RemoveBill => {
+                TerminalManager::clear_screen(0);
+                menu::remove_bill(&mut bills);
+                TerminalManager::clear_screen(2);
             },
             MenuOption::Quit => break,
             _ => {
@@ -92,48 +102,105 @@ fn main() {
     println!("exiting...");
 }
 
-fn print_menu() {
 
-    println!("== Manage Bills ==");
-    println!("1. Add Bill");
-    println!("2. View Bills");
-    println!("q: quit");
+fn get_input() -> Option<String> {
 
-    // empty spacer from menu
-    println!();
-}
-
-fn get_input() -> io::Result<String> {
-
-        let mut buff = String::new();
-
-        io::stdin().read_line(&mut buff)?;
-        Ok(buff.trim().to_owned())
-}
-
-fn create_new_bill() -> Bill {
     let mut buff = String::new();
+    while io::stdin().read_line(&mut buff).is_err() {
+        println!("Please re-enter data");
+    }
 
-    println!("What is the name of this new bill?");
-    io::stdin().read_line(&mut buff).expect("create_new_bill: Unable to read input");
-    let name = buff.trim().to_owned();
+    let input = buff.trim().to_owned();
+    if &input == "" {
+        return None;
+    }
 
-    buff.clear();
-    println!("What is the cost of this bill?");
-    io::stdin().read_line(&mut buff).expect("create_new_bill: Unable to read input");
-    let cost = buff.trim().parse::<f32>().unwrap();
-
-    Bill::new(name, cost)
+    Some(input)
 }
 
-#[derive(Debug)]
+fn get_bill_amount() -> Option<f64> {
+    loop {
+        let amount = match get_input() {
+            Some(val) => val,
+            None => return None
+        };
+
+        if &amount == "" {
+            return None;
+        }
+
+        let parsed_amount: Result<f64, _> = amount.parse();
+
+        match parsed_amount {
+            Ok(val) => return Some(val),
+            Err(_) => println!("Please enter a number")
+        }
+    }
+}
+
+mod menu {
+    use crate::{get_input, get_bill_amount, Bill, BillList};
+
+    pub(crate) fn print_main_menu() {
+        println!("== Manage Bills ==");
+        println!("1. Add Bill");
+        println!("2. View Bills");
+        println!("3. Remove Bill");
+        println!("q: quit");
+        println!();
+    }
+
+    pub(crate) fn create_bill() -> Option<Bill> {
+
+        println!("Bill Name:");
+        let name = match get_input() {
+            Some(val) => val,
+            None => return None
+        };
+
+        println!("Bill Amount:");
+        let amount = match get_bill_amount() {
+            Some(val) => val,
+            None => return None
+        };
+
+        Some(Bill::new(name, amount))
+    }
+
+    pub(crate) fn view_bills(bills_vec: Vec<&Bill>) {
+        for bill in bills_vec {
+            println!("Name: {} | Amount: {}", bill.name, bill.amount);
+        }
+    }
+
+    pub(crate) fn remove_bill(bills: &mut BillList) {
+        for bill in bills.get_all() {
+            println!("Name: {}", bill.name);
+        }
+        println!("Enter bill name to remove:");
+
+        let bill_name = match get_input() {
+            Some(val) => val,
+            None => return
+        };
+
+        if bills.remove(&bill_name) {
+            println!("{} removed", bill_name);
+            return;
+        }
+
+        println!("{} not found",bill_name);
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Bill {
     name: String,
-    amount: f32
+    amount: f64
 }
 
 impl Bill {
-    fn new(name: String, amount: f32) -> Bill {
+    fn new(name: String, amount: f64) -> Bill {
         Bill { name, amount }
     }
 }
@@ -149,30 +216,35 @@ impl TerminalManager {
 }
 
 struct BillList {
-    bills: Vec<Bill>
+    bills: HashMap<String, Bill>
 }
 
 impl BillList {
     fn new() -> Self {
-        Self{bills: Vec::new()}
+        Self{bills: HashMap::new()}
     }
 
     fn add(&mut self, new_bill: Bill) {
-        self.bills.push(new_bill);
+        self.bills.insert(new_bill.name.to_string(), new_bill);
     }
 
-    fn print(&self) {
-        self.bills.iter().for_each(| bill | println!("{} {}", bill.name, bill.amount));
+    fn get_all(&self) -> Vec<&Bill> {
+        self.bills.values().collect()
     }
 
     fn length(&self) -> usize {
         self.bills.len()
+    }
+
+    fn remove(&mut self, name: &str) -> bool {
+        self.bills.remove(name).is_some()
     }
 }
 
 enum MenuOption {
     AddBill,
     ViewBills,
+    RemoveBill,
     Quit
 }
 
@@ -182,6 +254,7 @@ impl MenuOption {
         match selection.as_str() {
            "1" => Some(MenuOption::AddBill),
            "2" => Some(MenuOption::ViewBills), 
+           "3" => Some(MenuOption::RemoveBill), 
            "q" => Some(MenuOption::Quit),
             _ => None
         }
