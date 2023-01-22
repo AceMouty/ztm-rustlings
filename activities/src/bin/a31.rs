@@ -19,4 +19,42 @@
 // * Use a function to calculate the total cost
 // * Process at least 3 different materials
 
-fn main() {}
+trait Material {
+    fn amount(&self) -> u64;
+}
+
+struct Carpet(u64); // Tuple struct
+impl Material for Carpet {
+    fn amount(&self) -> u64 {
+        self.0 * 10 // self.0 -> access first item in tuple struct
+    }
+}
+
+struct Tile(u64);
+impl Material for Tile {
+    fn amount(&self) -> u64 {
+        self.0 * 15
+    }
+}
+
+struct Wood(u64);
+impl Material for Wood {
+    fn amount(&self) -> u64 {
+        self.0 * 20
+    }
+}
+
+fn calculate_total(materials: &Vec<Box<dyn Material>>) -> u64 {
+    materials.iter().map( | item | item.amount()).sum()
+}
+
+fn main() {
+    let sqr_ft = 3;
+    let carpet = Box::new(Carpet(sqr_ft));
+    let tile = Box::new(Tile(sqr_ft));
+    let wood = Box::new(Wood(sqr_ft));
+
+    let materials: Vec<Box<dyn Material>> = vec![carpet, tile, wood];
+    let total_cost = calculate_total(&materials);
+    println!("Total cost of materials is: {}", total_cost);
+}
